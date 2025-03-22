@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tic Tac Toe vs Bot</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            /* Classic background */
+            background-color: #f5f5dc;
+            background-image: linear-gradient(90deg, #d9d9d9 1px, transparent 1px),
+                              linear-gradient(#d9d9d9 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+
+        h1 {
+            color: #333;
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .status {
+            margin: 20px 0;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            background-color: rgba(255, 255, 255, 0.7);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 2px solid #333;
+            text-align: center;
+            min-width: 200px;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 100px);
+            grid-template-rows: repeat(3, 100px);
+            gap: 5px;
+            background-color: #333;
+            padding: 5px;
+            border-radius: 5px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+        
+        .cell {
+            width: 100px;
+            height: 100px;
+            background-color: #f5f5dc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+        
+        .cell:hover {
+            background-color: #e0e0c0;
+        }
+        
+        .x {
+            color: #d62728;
+        }
+        
+        .o {
+            color: #1f77b4;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            font-weight: bold;
+            background-color: #333;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Courier New', monospace;
+        }
+        
+        button:hover {
+            background-color: #555;
+        }
+        
+        .difficulty {
+            margin-top: 10px;
+        }
+        
+        .difficulty label {
+            color: #333;
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        
+        select {
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: 1px solid #333;
+            background-color: #f5f5dc;
+            font-family: 'Courier New', monospace;
+        }
+        
+        /* Confetti container */
+        .confetti-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 999;
+            overflow: hidden;
+            display: none;
+        }
+        
+        /* Individual confetti piece */
+        .confetti {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #f00;
+            opacity: 0.7;
+            animation: fall linear forwards;
+        }
+        
+        @keyframes fall {
+            to {
+                transform: translateY(100vh) rotate(360deg);
+            }
+        }
+        
+        /* Game over overlay */
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 1000;
+            display: none;
+        }
+        
+        .game-over-message {
+            color: white;
+            font-size: 3rem;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .emoji {
+            font-size: 8rem;
+            margin-bottom: 20px;
+        }
+        
+        .continue-btn {
+            padding: 12px 24px;
+            font-size: 1.2rem;
+            background-color: #f5f5dc;
+            color: #333;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Tic Tac Toe vs Bot</h1>
+    <div class="status" id="status">Your turn (X)</div>
+    <div class="board" id="board">
+        <div class="cell" data-index="0"></div>
+        <div class="cell" data-index="1"></div>
+        <div class="cell" data-index="2"></div>
+        <div class="cell" data-index="3"></div>
+        <div class="cell" data-index="4"></div>
+        <div class="cell" data-index="5"></div>
+        <div class="cell" data-index="6"></div>
+        <div class="cell" data-index="7"></div>
+        <div class="cell" data-index="8"></div>
+    </div>
+    
+    <div class="difficulty">
+        <label for="difficulty">Bot Difficulty:</label>
+        <select id="difficulty">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="hard">Hard</option>
+        </select>
+    </div>
+    
+    <div class="controls">
+        <button id="reset">New Game</button>
+    </div>
+    
+    <!-- Confetti container -->
+    <div class="confetti-container" id="confetti-container"></div>
+    
+    <!-- Game over overlay -->
+    <div class="game-over" id="game-over">
+        <div class="game-over-message" id="game-over-message"></div>
+        <div class="emoji" id="result-emoji"></div>
+        <button class="continue-btn" id="continue-btn">Continue</button>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const board = document.getElementById('board');
+            const cells = document.querySelectorAll('.cell');
+            const status = document.getElementById('status');
+            const resetButton = document.getElementById('reset');
+            const difficultySelect = document.getElementById('difficulty');
+            const confettiContainer = document.getElementById('confetti-container');
+            const gameOverScreen = document.getElementById('game-over');
+            const gameOverMessage = document.getElementById('game-over-message');
+            const resultEmoji = document.getElementById('result-emoji');
+            const continueBtn = document.getElementById('continue-btn');
+            
+            // Game variables
+            let gameState = ['', '', '', '', '', '', '', '', ''];
+            let gameActive = true;
+            const HUMAN_PLAYER = 'X';
+            const AI_PLAYER = 'O';
+            let currentPlayer = HUMAN_PLAYER;
+            
+            const winningConditions = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+                [0, 4, 8], [2, 4, 6]             // diagonals
+            ];
+            
+            // Initialize the game
+            function initGame() {
+                gameState = ['', '', '', '', '', '', '', '', ''];
+                gameActive = true;
+                currentPlayer = HUMAN_PLAYER;
+                status.textContent = `Your turn (${HUMAN_PLAYER})`;
+                
+                cells.forEach(cell => {
+                    cell.textContent = '';
+                    cell.style.backgroundColor = '#f5f5dc';
+                    cell.classList.remove('x', 'o');
+                });
+            }
+            
+            // Handle human player move
+            function handleCellClick(e) {
+                const clickedCell = e.target;
+                const cellIndex = parseInt(clickedCell.getAttribute('data-index'));
+                
+                if (gameState[cellIndex] !== '' || !gameActive || currentPlayer !== HUMAN_PLAYER) {
+                    return;
+                }
+                
+                // Make human move
+                makeMove(cellIndex, HUMAN_PLAYER);
+                
+                // If game is still active, let AI make a move
+                if (gameActive) {
+                    currentPlayer = AI_PLAYER;
+                    status.textContent = `Bot is thinking...`;
+                    
+                    // Add a small delay to make it seem like the AI is "thinking"
+                    setTimeout(() => {
+                        makeAIMove();
+                        if (gameActive) {
+                            currentPlayer = HUMAN_PLAYER;
+                            status.textContent = `Your turn (${HUMAN_PLAYER})`;
+                        }
+                    }, 700);
+                }
+            }
+            
+            // Make a move (both human and AI)
+            function makeMove(cellIndex, player) {
+                gameState[cellIndex] = player;
+                cells[cellIndex].textContent = player;
+                cells[cellIndex].classList.add(player.toLowerCase());
+                
+                checkWin();
+                checkDraw();
+            }
+            
+            // AI move logic
+            function makeAIMove() {
+                const difficulty = difficultySelect.value;
+                let cellIndex;
+                
+                switch(difficulty) {
+                    case 'easy':
+                        cellIndex = makeRandomMove();
+                        break;
+                    case 'medium':
+                        // 50% chance to make a smart move, 50% chance to make a random move
+                        cellIndex = Math.random() < 0.5 ? makeSmartMove() : makeRandomMove();
+                        break;
+                    case 'hard':
+                        cellIndex = makeSmartMove();
+                        break;
+                    default:
+                        cellIndex = makeRandomMove();
+                }
+                
+                if (cellIndex !== null) {
+                    makeMove(cellIndex, AI_PLAYER);
+                }
+            }
+            
+            // Make a random valid move
+            function makeRandomMove() {
+                const emptyCells = gameState
+                    .map((cell, index) => cell === '' ? index : null)
+                    .filter(index => index !== null);
+                    
+                if (emptyCells.length === 0) return null;
+                
+                const randomIndex = Math.floor(Math.random() * emptyCells.length);
+                return emptyCells[randomIndex];
+            }
+            
+            // Make a smart move (win if possible, block if necessary, or take center/corners)
+            function makeSmartMove() {
+                // Check if AI can win
+                for (let i = 0; i < 9; i++) {
+                    if (gameState[i] === '') {
+                        gameState[i] = AI_PLAYER; // Try the move
+                        if (checkWinCondition()) {
+                            gameState[i] = ''; // Undo the move
+                            return i; // Return winning move
+                        }
+                        gameState[i] = ''; // Undo the move
+                    }
+                }
+                
+                // Check if human can win and block
+                for (let i = 0; i < 9; i++) {
+                    if (gameState[i] === '') {
+                        gameState[i] = HUMAN_PLAYER; // Try the move
+                        if (checkWinCondition()) {
+                            gameState[i] = ''; // Undo the move
+                            return i; // Return blocking move
+                        }
+                        gameState[i] = ''; // Undo the move
+                    }
+                }
+                
+                // Take center if available
+                if (gameState[4] === '') {
+                    return 4;
+                }
+                
+                // Take corners if available
+                const corners = [0, 2, 6, 8];
+                const availableCorners = corners.filter(corner => gameState[corner] === '');
+                if (availableCorners.length > 0) {
+                    return availableCorners[Math.floor(Math.random() * availableCorners.length)];
+                }
+                
+                // Take any available edge
+                const edges = [1, 3, 5, 7];
+                const availableEdges = edges.filter(edge => gameState[edge] === '');
+                if (availableEdges.length > 0) {
+                    return availableEdges[Math.floor(Math.random() * availableEdges.length)];
+                }
+                
+                return makeRandomMove(); // Fallback to random if something went wrong
+            }
+            
+            // Check if the current board state has a winner
+            function checkWinCondition() {
+                return winningConditions.some(condition => {
+                    const [a, b, c] = condition;
+                    return gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c];
+                });
+            }
+            
+            // Confetti celebration effect
+            function createConfetti() {
+                confettiContainer.style.display = 'block';
+                
+                // Create confetti pieces
+                const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
+                const confettiCount = 150;
+                
+                for (let i = 0; i < confettiCount; i++) {
+                    const confetti = document.createElement('div');
+                    confetti.className = 'confetti';
+                    
+                    // Random position, color, size, and animation duration
+                    const left = Math.random() * 100;
+                    const color = colors[Math.floor(Math.random() * colors.length)];
+                    const size = Math.random() * 10 + 5;
+                    const duration = Math.random() * 3 + 2;
+                    
+                    confetti.style.left = left + 'vw';
+                    confetti.style.backgroundColor = color;
+                    confetti.style.width = size + 'px';
+                    confetti.style.height = size + 'px';
+                    confetti.style.animationDuration = duration + 's';
+                    
+                    confettiContainer.appendChild(confetti);
+                }
+                
+                // Clean up confetti after animation completes
+                setTimeout(() => {
+                    confettiContainer.style.display = 'none';
+                    confettiContainer.innerHTML = '';
+                }, 5000);
+            }
+            
+            // Show game over screen
+            function showGameOver(message, emoji) {
+                gameOverMessage.textContent = message;
+                resultEmoji.textContent = emoji;
+                gameOverScreen.style.display = 'flex';
+            }
+            
+            // Check for a win
+            function checkWin() {
+                for (let i = 0; i < winningConditions.length; i++) {
+                    const [a, b, c] = winningConditions[i];
+                    if (gameState[a] && gameState[a] === gameState[b] && gameState[a] === gameState[c]) {
+                        gameActive = false;
+                        
+                        // Highlight winning cells
+                        const winColor = gameState[a] === HUMAN_PLAYER ? '#ffcccc' : '#ccccff';
+                        cells[a].style.backgroundColor = winColor;
+                        cells[b].style.backgroundColor = winColor;
+                        cells[c].style.backgroundColor = winColor;
+                        
+                        // Show appropriate celebration or loss effect
+                        if (gameState[a] === HUMAN_PLAYER) {
+                            status.textContent = 'You win!';
+                            createConfetti();
+                            setTimeout(() => {
+                                showGameOver("CONGRATULATIONS!", "🎉");
+                            }, 1000);
+                        } else {
+                            status.textContent = 'Bot wins!';
+                            setTimeout(() => {
+                                showGameOver("YOU LOST", "😢");
+                            }, 1000);
+                        }
+                        
+                        return true;
+                    }
+                }
+                return false;
+            }
+            
+            // Check for a draw
+            function checkDraw() {
+                if (gameActive && !gameState.includes('')) {
+                    gameActive = false;
+                    status.textContent = 'Game ended in a draw!';
+                    setTimeout(() => {
+                        showGameOver("IT'S A DRAW", "🤝");
+                    }, 1000);
+                    return true;
+                }
+                return false;
+            }
+            
+            // Event listeners
+            cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+            resetButton.addEventListener('click', initGame);
+            continueBtn.addEventListener('click', () => {
+                gameOverScreen.style.display = 'none';
+            });
+            
+            // Initialize the game
+            initGame();
+        });
+    </script>
+</body>
+</html>
+<!-- Add this in the <head> section of your HTML file -->
+    <style>
+        /* Change the font for the entire game */
+        body, button, input {
+          font-family: 'Arial', sans-serif; /* Change to your preferred font */
+        }
+        
+        /* Or target specific elements */
+        .game-board {
+          font-family: 'Courier New', monospace;
+        }
+        
+        .game-title {
+          font-family: 'Georgia', serif;
+        }
+        
+        /* You can also import Google Fonts */
+        @import url('https://fonts.googleapis.com/css2?family=Roboto&display=swap');
+        .game-controls {
+          font-family: 'Roboto', sans-serif;
+        }
+      </style>
+      <!-- Add this to your <style> section in the <head> of your HTML file -->
+<style>
+    /* Change the background color of the entire page */
+    body {
+      background-color: #f0f0f0; /* Light gray */
+    }
+    
+    /* Or use a background image for the whole page */
+    body {
+      background-image: url('background.jpg');
+      background-size: cover;
+      background-repeat: no-repeat;
+    }
+    
+    /* Change background for specific elements */
+    .game-board {
+      background-color: #ffffff; /* White background for the game board */
+    }
+    
+    /* Create a gradient background */
+    body {
+      background: linear-gradient(to bottom, #3498db, #2c3e50);
+    }
+    
+    /* Animated gradient background */
+    body {
+      background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+      background-size: 400% 400%;
+      animation: gradient 15s ease infinite;
+    }
+    
+    @keyframes gradient {
+      0% {
+        background-position: 0% 50%;
+      }
+      50% {
+        background-position: 100% 50%;
+      }
+      100% {
+        background-position: 0% 50%;
+      }
+    }
+  </style>
+  <!-- Add this to your <head> section -->
+<style>
+    /* Option 1: Use retro web-safe fonts */
+    body, button, input {
+      font-family: 'Courier New', Courier, monospace;
+      color: #00ff00; /* Classic green computer text */
+      text-shadow: 0 0 5px rgba(0, 255, 0, 0.7);
+    }
+    
+    /* Option 2: Import and use retro-style Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+    
+    body, button, input {
+      font-family: 'Press Start 2P', cursive;
+    }
+    
+    /* Option 3: Pixel-style font with VT323 */
+    @import url('https://fonts.googleapis.com/css2?family=VT323&display=swap');
+    
+    body, button, input {
+      font-family: 'VT323', monospace;
+      font-size: 1.2em;
+    }
+    
+    /* Additional retro styling */
+    .game-board {
+      border: 3px solid #ff6b00;
+    }
+    
+    .game-title {
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+  </style>
+  <div class="difficulty">
+    <label for="grid-size">Grid Size:</label>
+    <select id="grid-size">
+        <option value="3">3x3</option>
+        <option value="4">4x4</option>
+    </select>
+</div>
+  

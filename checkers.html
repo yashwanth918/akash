@@ -1,0 +1,798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Checkers with Bot Players</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 60px);
+            grid-template-rows: repeat(8, 60px);
+            border: 4px solid #654321;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        }
+        
+        .square {
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+        }
+        
+        .light {
+            background-color: #e8c392;
+        }
+        
+        .dark {
+            background-color: #8b4513;
+        }
+        
+        .piece {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
+            position: relative;
+        }
+        
+        .red-piece {
+            background-color: #ff3333;
+        }
+        
+        .black-piece {
+            background-color: #333;
+        }
+        
+        .king::after {
+            content: "♔";
+            color: gold;
+            font-size: 24px;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        
+        .highlight {
+            background-color: rgba(255, 255, 0, 0.4);
+        }
+        
+        .move-highlight {
+            position: relative;
+        }
+        
+        .move-highlight::after {
+            content: "";
+            position: absolute;
+            width: 25px;
+            height: 25px;
+            background-color: rgba(0, 255, 0, 0.4);
+            border-radius: 50%;
+        }
+        
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .status {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #fff;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+        
+        button {
+            padding: 10px 15px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        select {
+            padding: 8px;
+            font-size: 16px;
+            border-radius: 4px;
+            border: 1px solid #ccc;
+        }
+        
+        .player-settings {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        
+        .player-option {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #fff;
+        }
+        
+        .thinking {
+            margin-top: 10px;
+            font-style: italic;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <h1>Checkers with Bot Players</h1>
+    
+    <div class="player-settings">
+        <div class="player-option">
+            <h3>Red Player</h3>
+            <select id="red-player">
+                <option value="human">Human</option>
+                <option value="easy">Bot (Easy)</option>
+                <option value="medium">Bot (Medium)</option>
+                <option value="hard">Bot (Hard)</option>
+            </select>
+        </div>
+        <div class="player-option">
+            <h3>Black Player</h3>
+            <select id="black-player">
+                <option value="human">Human</option>
+                <option value="easy">Bot (Easy)</option>
+                <option value="medium" selected>Bot (Medium)</option>
+                <option value="hard">Bot (Hard)</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="game-container">
+        <div class="status" id="status">Red's turn</div>
+        <div class="board" id="board"></div>
+        <div id="thinking" class="thinking"></div>
+    </div>
+    
+    <div class="controls">
+        <button id="new-game">New Game</button>
+        <button id="undo">Undo Last Move</button>
+    </div>
+    
+    <script>
+        class CheckersGame {
+            constructor() {
+                this.board = document.getElementById('board');
+                this.statusDisplay = document.getElementById('status');
+                this.thinkingDisplay = document.getElementById('thinking');
+                this.newGameButton = document.getElementById('new-game');
+                this.undoButton = document.getElementById('undo');
+                this.redPlayerSelect = document.getElementById('red-player');
+                this.blackPlayerSelect = document.getElementById('black-player');
+                
+                this.boardState = [];
+                this.selectedPiece = null;
+                this.currentPlayer = 'red'; // red goes first
+                this.possibleMoves = [];
+                this.gameHistory = [];
+                this.isJumping = false;
+                this.mustJump = false;
+                this.inProgress = false;
+                this.botThinking = false;
+                
+                this.initializeBoard();
+                this.setupEventListeners();
+            }
+            
+            initializeBoard() {
+                this.board.innerHTML = '';
+                this.boardState = Array(8).fill().map(() => Array(8).fill(null));
+                
+                // Create the checkerboard pattern
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const square = document.createElement('div');
+                        square.classList.add('square');
+                        square.classList.add((row + col) % 2 === 0 ? 'light' : 'dark');
+                        square.dataset.row = row;
+                        square.dataset.col = col;
+                        
+                        // Place initial pieces
+                        if ((row + col) % 2 !== 0) {
+                            if (row < 3) {
+                                // Black pieces at the top
+                                this.boardState[row][col] = { player: 'black', isKing: false };
+                            } else if (row > 4) {
+                                // Red pieces at the bottom
+                                this.boardState[row][col] = { player: 'red', isKing: false };
+                            }
+                        }
+                        
+                        this.board.appendChild(square);
+                    }
+                }
+                
+                this.renderBoard();
+                this.currentPlayer = 'red';
+                this.updateStatus();
+                this.inProgress = true;
+                this.checkForBotMove();
+            }
+            
+            renderBoard() {
+                const squares = this.board.querySelectorAll('.square');
+                
+                squares.forEach(square => {
+                    // Clear previous contents
+                    square.innerHTML = '';
+                    square.classList.remove('highlight', 'move-highlight');
+                    
+                    const row = parseInt(square.dataset.row);
+                    const col = parseInt(square.dataset.col);
+                    const pieceData = this.boardState[row][col];
+                    
+                    if (pieceData) {
+                        const piece = document.createElement('div');
+                        piece.classList.add('piece');
+                        piece.classList.add(`${pieceData.player}-piece`);
+                        
+                        if (pieceData.isKing) {
+                            piece.classList.add('king');
+                        }
+                        
+                        square.appendChild(piece);
+                    }
+                });
+                
+                // Highlight selected piece
+                if (this.selectedPiece) {
+                    const { row, col } = this.selectedPiece;
+                    const selectedSquare = this.getSquareElement(row, col);
+                    if (selectedSquare) {
+                        selectedSquare.classList.add('highlight');
+                    }
+                    
+                    // Highlight possible moves
+                    this.possibleMoves.forEach(move => {
+                        const moveSquare = this.getSquareElement(move.toRow, move.toCol);
+                        if (moveSquare) {
+                            moveSquare.classList.add('move-highlight');
+                        }
+                    });
+                }
+            }
+            
+            getSquareElement(row, col) {
+                return this.board.querySelector(`.square[data-row="${row}"][data-col="${col}"]`);
+            }
+            
+            setupEventListeners() {
+                this.board.addEventListener('click', (e) => {
+                    if (!this.inProgress || this.botThinking) return;
+                    
+                    const square = e.target.closest('.square');
+                    if (!square) return;
+                    
+                    const row = parseInt(square.dataset.row);
+                    const col = parseInt(square.dataset.col);
+                    
+                    this.handleSquareClick(row, col);
+                });
+                
+                this.newGameButton.addEventListener('click', () => {
+                    this.initializeBoard();
+                });
+                
+                this.undoButton.addEventListener('click', () => {
+                    this.undoLastMove();
+                });
+                
+                this.redPlayerSelect.addEventListener('change', () => {
+                    this.checkForBotMove();
+                });
+                
+                this.blackPlayerSelect.addEventListener('change', () => {
+                    this.checkForBotMove();
+                });
+            }
+            
+            handleSquareClick(row, col) {
+                const currentPlayerType = this.getCurrentPlayerType();
+                if (currentPlayerType !== 'human') return;
+                
+                const pieceData = this.boardState[row][col];
+                
+                // If no piece is selected yet
+                if (!this.selectedPiece) {
+                    if (pieceData && pieceData.player === this.currentPlayer) {
+                        this.selectedPiece = { row, col };
+                        this.possibleMoves = this.getValidMoves(row, col);
+                        
+                        // Check if there are jumps available on the board
+                        const allJumps = this.getAllAvailableJumps();
+                        if (allJumps.length > 0) {
+                            this.mustJump = true;
+                            // Filter moves to only include jumps if jumps are available
+                            const pieceJumps = this.possibleMoves.filter(move => move.isJump);
+                            if (pieceJumps.length === 0) {
+                                // If this piece can't jump but others can, deselect
+                                this.selectedPiece = null;
+                                this.possibleMoves = [];
+                                this.statusDisplay.textContent = `${this.currentPlayer.charAt(0).toUpperCase() + this.currentPlayer.slice(1)} must make a jump!`;
+                                this.renderBoard();
+                                return;
+                            }
+                            this.possibleMoves = pieceJumps;
+                        } else {
+                            this.mustJump = false;
+                        }
+                        
+                        this.renderBoard();
+                    }
+                }
+                // If a piece is already selected
+                else {
+                    // Check if the clicked square is a valid move
+                    const validMove = this.possibleMoves.find(move => 
+                        move.toRow === row && move.toCol === col
+                    );
+                    
+                    if (validMove) {
+                        this.makeMove(validMove);
+                    } else if (pieceData && pieceData.player === this.currentPlayer) {
+                        // Select a different piece of the same color
+                        this.selectedPiece = { row, col };
+                        this.possibleMoves = this.getValidMoves(row, col);
+                        
+                        if (this.mustJump) {
+                            this.possibleMoves = this.possibleMoves.filter(move => move.isJump);
+                            if (this.possibleMoves.length === 0) {
+                                this.selectedPiece = null;
+                                this.possibleMoves = [];
+                                this.statusDisplay.textContent = `${this.currentPlayer.charAt(0).toUpperCase() + this.currentPlayer.slice(1)} must make a jump!`;
+                                this.renderBoard();
+                                return;
+                            }
+                        }
+                        
+                        this.renderBoard();
+                    } else {
+                        // Deselect the current piece
+                        this.selectedPiece = null;
+                        this.possibleMoves = [];
+                        this.renderBoard();
+                    }
+                }
+            }
+            
+            getValidMoves(row, col) {
+                const piece = this.boardState[row][col];
+                if (!piece) return [];
+                
+                const moves = [];
+                const directions = [];
+                
+                // Determine move directions based on player and king status
+                if (piece.player === 'red' || piece.isKing) {
+                    // Red moves up (decreasing row)
+                    directions.push({ rowDir: -1, colDir: -1 }); // up-left
+                    directions.push({ rowDir: -1, colDir: 1 }); // up-right
+                }
+                
+                if (piece.player === 'black' || piece.isKing) {
+                    // Black moves down (increasing row)
+                    directions.push({ rowDir: 1, colDir: -1 }); // down-left
+                    directions.push({ rowDir: 1, colDir: 1 }); // down-right
+                }
+                
+                // Check for regular moves and jumps
+                directions.forEach(({ rowDir, colDir }) => {
+                    // Regular move - one square in direction
+                    const newRow = row + rowDir;
+                    const newCol = col + colDir;
+                    
+                    if (this.isValidPosition(newRow, newCol) && !this.boardState[newRow][newCol]) {
+                        moves.push({
+                            fromRow: row,
+                            fromCol: col,
+                            toRow: newRow,
+                            toCol: newCol,
+                            isJump: false
+                        });
+                    }
+                    
+                    // Jump move - over an opponent's piece
+                    const jumpRow = row + rowDir * 2;
+                    const jumpCol = col + colDir * 2;
+                    const enemyPiece = this.isValidPosition(newRow, newCol) ? this.boardState[newRow][newCol] : null;
+                    
+                    if (
+                        enemyPiece && 
+                        enemyPiece.player !== piece.player && 
+                        this.isValidPosition(jumpRow, jumpCol) && 
+                        !this.boardState[jumpRow][jumpCol]
+                    ) {
+                        moves.push({
+                            fromRow: row,
+                            fromCol: col,
+                            toRow: jumpRow,
+                            toCol: jumpCol,
+                            isJump: true,
+                            jumpedRow: newRow,
+                            jumpedCol: newCol
+                        });
+                    }
+                });
+                
+                return moves;
+            }
+            
+            getAllAvailableJumps() {
+                let allJumps = [];
+                
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const piece = this.boardState[row][col];
+                        if (piece && piece.player === this.currentPlayer) {
+                            const pieceMoves = this.getValidMoves(row, col);
+                            const pieceJumps = pieceMoves.filter(move => move.isJump);
+                            allJumps = allJumps.concat(pieceJumps);
+                        }
+                    }
+                }
+                
+                return allJumps;
+            }
+            
+            makeMove(move) {
+                // Save current state for undo
+                this.saveGameState();
+                
+                // Move the piece
+                const piece = this.boardState[move.fromRow][move.fromCol];
+                this.boardState[move.toRow][move.toCol] = piece;
+                this.boardState[move.fromRow][move.fromCol] = null;
+                
+                // Handle jumps - remove the jumped piece
+                if (move.isJump) {
+                    this.boardState[move.jumpedRow][move.jumpedCol] = null;
+                    this.isJumping = true;
+                }
+                
+                // Check for king promotion
+                if (
+                    (piece.player === 'red' && move.toRow === 0) ||
+                    (piece.player === 'black' && move.toRow === 7)
+                ) {
+                    piece.isKing = true;
+                    this.isJumping = false; // End turn on king promotion
+                }
+                
+                // Check if additional jumps are available
+                let additionalJumps = [];
+                if (this.isJumping) {
+                    additionalJumps = this.getValidMoves(move.toRow, move.toCol)
+                        .filter(nextMove => nextMove.isJump);
+                }
+                
+                if (this.isJumping && additionalJumps.length > 0) {
+                    // Player can make another jump with the same piece
+                    this.selectedPiece = { row: move.toRow, col: move.toCol };
+                    this.possibleMoves = additionalJumps;
+                    this.renderBoard();
+                    this.statusDisplay.textContent = `${this.currentPlayer.charAt(0).toUpperCase() + this.currentPlayer.slice(1)} must continue jumping!`;
+                } else {
+                    // End turn
+                    this.selectedPiece = null;
+                    this.possibleMoves = [];
+                    this.isJumping = false;
+                    this.switchPlayer();
+                }
+            }
+            
+            switchPlayer() {
+                this.currentPlayer = this.currentPlayer === 'red' ? 'black' : 'red';
+                this.updateStatus();
+                
+                // Check for game over
+                if (this.isGameOver()) {
+                    this.inProgress = false;
+                    const winner = this.currentPlayer === 'red' ? 'black' : 'red';
+                    this.statusDisplay.textContent = `Game Over! ${winner.charAt(0).toUpperCase() + winner.slice(1)} wins!`;
+                    return;
+                }
+                
+                this.checkForBotMove();
+            }
+            
+            checkForBotMove() {
+                if (!this.inProgress) return;
+                
+                const currentPlayerType = this.getCurrentPlayerType();
+                
+                if (currentPlayerType !== 'human') {
+                    this.botThinking = true;
+                    this.thinkingDisplay.textContent = `Bot (${currentPlayerType}) is thinking...`;
+                    
+                    // Use setTimeout to give a visual indication of "thinking"
+                    setTimeout(() => {
+                        this.makeBotMove(currentPlayerType);
+                        this.botThinking = false;
+                        this.thinkingDisplay.textContent = '';
+                    }, 500);
+                } else {
+                    this.thinkingDisplay.textContent = '';
+                }
+            }
+            
+            getCurrentPlayerType() {
+                if (this.currentPlayer === 'red') {
+                    return this.redPlayerSelect.value;
+                } else {
+                    return this.blackPlayerSelect.value;
+                }
+            }
+            
+            makeBotMove(difficulty) {
+                // Get all pieces that can move
+                const allJumps = this.getAllAvailableJumps();
+                const mustJump = allJumps.length > 0;
+                
+                let possibleMoves = [];
+                
+                // If jumps are available, must take them
+                if (mustJump) {
+                    possibleMoves = allJumps;
+                } else {
+                    // Get all possible moves
+                    for (let row = 0; row < 8; row++) {
+                        for (let col = 0; col < 8; col++) {
+                            const piece = this.boardState[row][col];
+                            if (piece && piece.player === this.currentPlayer) {
+                                const pieceMoves = this.getValidMoves(row, col);
+                                pieceMoves.forEach(move => {
+                                    possibleMoves.push(move);
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                if (possibleMoves.length === 0) {
+                    // No moves available, game over
+                    this.inProgress = false;
+                    const winner = this.currentPlayer === 'red' ? 'black' : 'red';
+                    this.statusDisplay.textContent = `Game Over! ${winner.charAt(0).toUpperCase() + winner.slice(1)} wins!`;
+                    return;
+                }
+                
+                let selectedMove;
+                
+                // Different difficulty levels use different strategies
+                if (difficulty === 'easy') {
+                    // Easy: Random move
+                    selectedMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                } else if (difficulty === 'medium') {
+                    // Medium: Prefer jumps, kings, and advancing
+                    const scoredMoves = possibleMoves.map(move => {
+                        const piece = this.boardState[move.fromRow][move.fromCol];
+                        let score = 0;
+                        
+                        // Heavily prefer jumps
+                        if (move.isJump) score += 10;
+                        
+                        // Prefer king moves
+                        if (piece.isKing) score += 2;
+                        
+                        // Prefer advancing to king row
+                        if (piece.player === 'red' && move.toRow < move.fromRow) {
+                            score += (7 - move.toRow) / 7; // More points for getting closer to king row
+                        } else if (piece.player === 'black' && move.toRow > move.fromRow) {
+                            score += move.toRow / 7; // More points for getting closer to king row
+                        }
+                        
+                        // Prefer king promotion
+                        if ((piece.player === 'red' && move.toRow === 0) || 
+                            (piece.player === 'black' && move.toRow === 7)) {
+                            score += 5;
+                        }
+                        
+                        // Add some randomness
+                        score += Math.random();
+                        
+                        return { move, score };
+                    });
+                    
+                    // Sort by score and take the best move
+                    scoredMoves.sort((a, b) => b.score - a.score);
+                    selectedMove = scoredMoves[0].move;
+                } else if (difficulty === 'hard') {
+                    // Hard: Look ahead one move to find the best outcome
+                    const scoredMoves = possibleMoves.map(move => {
+                        // Make a deep copy of the board
+                        const tempBoardState = JSON.parse(JSON.stringify(this.boardState));
+                        const tempCurrentPlayer = this.currentPlayer;
+                        
+                        // Simulate the move
+                        const piece = tempBoardState[move.fromRow][move.fromCol];
+                        tempBoardState[move.toRow][move.toCol] = piece;
+                        tempBoardState[move.fromRow][move.fromCol] = null;
+                        
+                        if (move.isJump) {
+                            tempBoardState[move.jumpedRow][move.jumpedCol] = null;
+                        }
+                        
+                        // Check for promotion
+                        if ((piece.player === 'red' && move.toRow === 0) || 
+                            (piece.player === 'black' && move.toRow === 7)) {
+                            piece.isKing = true;
+                        }
+                        
+                        let score = this.evaluateBoard(tempBoardState, this.currentPlayer);
+                        
+                        // Add some randomness for variety
+                        score += Math.random() * 0.5;
+                        
+                        return { move, score };
+                    });
+                    
+                    // Sort by score and take the best move
+                    scoredMoves.sort((a, b) => b.score - a.score);
+                    selectedMove = scoredMoves[0].move;
+                }
+                
+                if (selectedMove) {
+                    this.makeMove(selectedMove);
+                    
+                    // If the bot can make additional jumps, handle them
+                    if (this.isJumping && this.selectedPiece && this.possibleMoves.length > 0) {
+                        this.makeBotMove(difficulty); // Recursive call for multiple jumps
+                    }
+                }
+            }
+            
+            evaluateBoard(board, playerColor) {
+                let score = 0;
+                
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const piece = board[row][col];
+                        if (!piece) continue;
+                        
+                        const value = piece.isKing ? 3 : 1;
+                        
+                        if (piece.player === playerColor) {
+                            score += value;
+                            
+                            // Position bonuses
+                            if (!piece.isKing) {
+                                // Prefer pieces closer to king row
+                                if (piece.player === 'red') {
+                                    score += (7 - row) * 0.1; // Red wants to go up (row 0)
+                                } else {
+                                    score += row * 0.1; // Black wants to go down (row 7)
+                                }
+                            }
+                            
+                            // Prefer pieces on the edges (harder to capture)
+                            if (col === 0 || col === 7) {
+                                score += 0.2;
+                            }
+                            
+                            // Prefer pieces protected by the back wall
+                            if ((piece.player === 'red' && row === 7) || 
+                                (piece.player === 'black' && row === 0)) {
+                                score += 0.3;
+                            }
+                        } else {
+                            score -= value;
+                        }
+                    }
+                }
+                
+                return score;
+            }
+            
+            saveGameState() {
+                // Create a deep copy of the board state
+                const boardCopy = JSON.parse(JSON.stringify(this.boardState));
+                
+                this.gameHistory.push({
+                    board: boardCopy,
+                    player: this.currentPlayer,
+                    isJumping: this.isJumping,
+                    selectedPiece: this.selectedPiece ? { ...this.selectedPiece } : null,
+                    possibleMoves: [...this.possibleMoves]
+                });
+                
+                // Limit history size
+                if (this.gameHistory.length > 20) {
+                    this.gameHistory.shift();
+                }
+            }
+            
+            undoLastMove() {
+                if (this.gameHistory.length === 0) return;
+                
+                const lastState = this.gameHistory.pop();
+                
+                this.boardState = lastState.board;
+                this.currentPlayer = lastState.player;
+                this.isJumping = lastState.isJumping;
+                this.selectedPiece = lastState.selectedPiece;
+                this.possibleMoves = lastState.possibleMoves;
+                
+                this.renderBoard();
+                this.updateStatus();
+                this.inProgress = true;
+                
+                // Check for bot move after undo
+                this.checkForBotMove();
+            }
+            
+            updateStatus() {
+                const playerType = this.getCurrentPlayerType();
+                const playerText = playerType === 'human' ? 
+                    `${this.currentPlayer.charAt(0).toUpperCase() + this.currentPlayer.slice(1)}'s turn` : 
+                    `${this.currentPlayer.charAt(0).toUpperCase() + this.currentPlayer.slice(1)} (Bot ${playerType}) turn`;
+                
+                this.statusDisplay.textContent = playerText;
+            }
+            
+            isGameOver() {
+                // Check if current player has any valid moves
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const piece = this.boardState[row][col];
+                        if (piece && piece.player === this.currentPlayer) {
+                            const moves = this.getValidMoves(row, col);
+                            if (moves.length > 0) {
+                                return false; // Player has at least one valid move
+                            }
+                        }
+                    }
+                }
+                
+                return true; // No valid moves available, game over
+            }
+            
+            isValidPosition(row, col) {
+                return row >= 0 && row < 8 && col >= 0 && col < 8;
+            }
+        }
+        
+        // Initialize the game when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const game = new CheckersGame();
+        });
+    </script>
+</body>
+</html>

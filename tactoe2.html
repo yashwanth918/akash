@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberpunk Tic Tac Toe</title>
+    <style>
+        :root {
+            --neon-pink: #ff2a6d;
+            --neon-blue: #05d9e8;
+            --neon-purple: #d300c5;
+            --dark-bg: #0a0a0a;
+            --cyberpunk-yellow: #f7f500;
+            --grid-line: #7122fa;
+            --neon-green: #39FF14;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--dark-bg);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            background-image: linear-gradient(45deg, #0a0a0a 0%, #1a0b2e 100%);
+        }
+        
+        h1 {
+            color: var(--neon-pink);
+            text-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink);
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+        }
+        
+        .game-container {
+            position: relative;
+            margin: 30px auto;
+        }
+        
+        .status {
+            margin-bottom: 20px;
+            font-size: 1.5rem;
+            color: var(--cyberpunk-yellow);
+            text-shadow: 0 0 5px var(--cyberpunk-yellow);
+            min-height: 1.5rem;
+            text-align: center;
+        }
+        
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+            position: relative;
+            width: 300px;
+            height: 300px;
+            border: 4px solid var(--grid-line);
+            border-radius: 10px;
+            box-shadow: 0 0 20px var(--grid-line), inset 0 0 10px var(--grid-line);
+            padding: 5px;
+        }
+        
+        .cell {
+            background-color: rgba(10, 10, 10, 0.8);
+            border: 2px solid var(--grid-line);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 4rem;
+            transition: all 0.3s ease;
+            box-shadow: inset 0 0 5px var(--grid-line);
+        }
+        
+        .cell:hover {
+            background-color: rgba(20, 20, 30, 0.9);
+            box-shadow: 0 0 15px var(--neon-purple), inset 0 0 10px var(--neon-purple);
+        }
+        
+        .x-mark {
+            width: 70%;
+            height: 70%;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .x-mark::before,
+        .x-mark::after {
+            content: "";
+            position: absolute;
+            width: 80%;
+            height: 80%;
+            border-radius: 50%;
+            background-color: var(--neon-pink);
+            box-shadow: 0 0 10px var(--neon-pink), 0 0 20px var(--neon-pink);
+            clip-path: polygon(10% 45%, 45% 45%, 45% 10%, 55% 10%, 55% 45%, 90% 45%, 90% 55%, 55% 55%, 55% 90%, 45% 90%, 45% 55%, 10% 55%);
+        }
+        
+        .o-mark {
+            width: 70%;
+            height: 70%;
+            border-radius: 50%;
+            border: 15px solid var(--neon-blue);
+            box-shadow: 0 0 10px var(--neon-blue), inset 0 0 5px var(--neon-blue);
+        }
+        
+        .button {
+            padding: 12px 25px;
+            font-size: 1.2rem;
+            background-color: transparent;
+            border: 2px solid;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: bold;
+            z-index: 1;
+            margin: 0 10px;
+        }
+        
+        .start-btn {
+            color: var(--cyberpunk-yellow);
+            border-color: var(--cyberpunk-yellow);
+            box-shadow: 0 0 10px var(--cyberpunk-yellow);
+        }
+        
+        .start-btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background-color: var(--cyberpunk-yellow);
+            transition: all 0.3s ease;
+            z-index: -1;
+        }
+        
+        .start-btn:hover {
+            color: var(--dark-bg);
+            text-shadow: none;
+        }
+        
+        .start-btn:hover::before {
+            left: 0;
+        }
+        
+        .bot-toggle {
+            color: var(--neon-green);
+            border-color: var(--neon-green);
+            box-shadow: 0 0 10px var(--neon-green);
+        }
+        
+        .bot-toggle::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background-color: var(--neon-green);
+            transition: all 0.3s ease;
+            z-index: -1;
+        }
+        
+        .bot-toggle:hover {
+            color: var(--dark-bg);
+            text-shadow: none;
+        }
+        
+        .bot-toggle:hover::before {
+            left: 0;
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .winner-line {
+            position: absolute;
+            background-color: var(--neon-purple);
+            z-index: 1;
+            box-shadow: 0 0 10px var(--neon-purple), 0 0 20px var(--neon-purple);
+            border-radius: 5px;
+        }
+        
+        .turn-indicator {
+            display: flex;
+            justify-content: space-between;
+            width: 300px;
+            margin-bottom: 20px;
+        }
+        
+        .player-indicator, .bot-indicator {
+            padding: 8px 15px;
+            border-radius: 15px;
+            font-weight: bold;
+            text-transform: uppercase;
+            transition: all 0.3s ease;
+        }
+        
+        .player-indicator {
+            background-color: rgba(255, 42, 109, 0.2);
+            border: 2px solid var(--neon-pink);
+            color: var(--neon-pink);
+        }
+        
+        .bot-indicator {
+            background-color: rgba(5, 217, 232, 0.2);
+            border: 2px solid var(--neon-blue);
+            color: var(--neon-blue);
+        }
+        
+        .active {
+            box-shadow: 0 0 15px currentColor;
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        /* Glitch effect */
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-3px, 3px) }
+            40% { transform: translate(-3px, -3px) }
+            60% { transform: translate(3px, 3px) }
+            80% { transform: translate(3px, -3px) }
+            100% { transform: translate(0) }
+        }
+        
+        .glitch {
+            animation: glitch 0.5s ease infinite;
+        }
+        
+        /* Bot thinking animation */
+        @keyframes thinking {
+            0% { opacity: 0.3 }
+            50% { opacity: 1 }
+            100% { opacity: 0.3 }
+        }
+        
+        .thinking {
+            animation: thinking 1.5s ease infinite;
+        }
+    </style>
+</head>
+<body>
+    <h1>Cyber Tic-Tac-Toe</h1>
+    <div class="game-container">
+        <div class="turn-indicator">
+            <div id="playerIndicator" class="player-indicator active">You (X)</div>
+            <div id="botIndicator" class="bot-indicator">CPU (O)</div>
+        </div>
+        <div class="status" id="status">Press START to play</div>
+        <div class="board" id="board">
+            <div class="cell" data-index="0"></div>
+            <div class="cell" data-index="1"></div>
+            <div class="cell" data-index="2"></div>
+            <div class="cell" data-index="3"></div>
+            <div class="cell" data-index="4"></div>
+            <div class="cell" data-index="5"></div>
+            <div class="cell" data-index="6"></div>
+            <div class="cell" data-index="7"></div>
+            <div class="cell" data-index="8"></div>
+        </div>
+        <div class="controls">
+            <button id="startBtn" class="button start-btn">Start</button>
+            <button id="botToggle" class="button bot-toggle">Bot: ON</button>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const board = document.getElementById('board');
+            const cells = document.querySelectorAll('.cell');
+            const status = document.getElementById('status');
+            const startBtn = document.getElementById('startBtn');
+            const botToggle = document.getElementById('botToggle');
+            const playerIndicator = document.getElementById('playerIndicator');
+            const botIndicator = document.getElementById('botIndicator');
+            
+            let gameActive = false;
+            let currentPlayer = 'X';
+            let gameState = ['', '', '', '', '', '', '', '', ''];
+            let botEnabled = true;
+            let botThinking = false;
+            
+            const winningConditions = [
+                [0, 1, 2], [3, 4, 5], [6, 7, 8], // rows
+                [0, 3, 6], [1, 4, 7], [2, 5, 8], // columns
+                [0, 4, 8], [2, 4, 6]             // diagonals
+            ];
+            
+            const messages = {
+                playerTurn: () => "Your turn",
+                botTurn: () => "CPU is thinking...",
+                playerWins: () => "You win!",
+                botWins: () => "CPU wins!",
+                draw: () => "Game ended in a draw!",
+                startGame: () => "Press START to play"
+            };
+            
+            function handleCellClick(clickedCellEvent) {
+                if (!gameActive || botThinking) return;
+                
+                const clickedCell = clickedCellEvent.target;
+                const clickedCellIndex = parseInt(clickedCell.getAttribute('data-index'));
+                
+                if (gameState[clickedCellIndex] !== '' || currentPlayer !== 'X') return;
+                
+                updateCell(clickedCell, clickedCellIndex);
+                const gameOver = checkForWin();
+                
+                if (!gameOver && botEnabled) {
+                    makeAIMove();
+                } else if (!gameOver) {
+                    switchPlayer();
+                }
+            }
+            
+            function updateCell(cell, index) {
+                gameState[index] = currentPlayer;
+                
+                if (currentPlayer === 'X') {
+                    const xMark = document.createElement('div');
+                    xMark.classList.add('x-mark');
+                    cell.appendChild(xMark);
+                } else {
+                    const oMark = document.createElement('div');
+                    oMark.classList.add('o-mark');
+                    cell.appendChild(oMark);
+                }
+            }
+            
+            function makeAIMove() {
+                if (!gameActive) return;
+                
+                botThinking = true;
+                switchIndicator();
+                status.textContent = messages.botTurn();
+                status.classList.add('thinking');
+                
+                // Add delay to simulate thinking
+                setTimeout(() => {
+                    if (!gameActive) {
+                        botThinking = false;
+                        return;
+                    }
+                    
+                    const availableMoves = [];
+                    gameState.forEach((cell, index) => {
+                        if (cell === '') availableMoves.push(index);
+                    });
+                    
+                    if (availableMoves.length > 0) {
+                        // Choose best move - this is a simple AI that prioritizes:
+                        // 1. Winning moves
+                        // 2. Blocking opponent's winning moves
+                        // 3. Center
+                        // 4. Corners
+                        // 5. Random available move
+                        
+                        let moveIndex = -1;
+                        
+                        // Check for winning move
+                        for (let i = 0; i < availableMoves.length; i++) {
+                            const move = availableMoves[i];
+                            gameState[move] = 'O';
+                            
+                            let isWinningMove = false;
+                            for (let j = 0; j < winningConditions.length; j++) {
+                                const [a, b, c] = winningConditions[j];
+                                if (gameState[a] === 'O' && gameState[b] === 'O' && gameState[c] === 'O') {
+                                    isWinningMove = true;
+                                    break;
+                                }
+                            }
+                            
+                            gameState[move] = '';
+                            
+                            if (isWinningMove) {
+                                moveIndex = move;
+                                break;
+                            }
+                        }
+                        
+                        // Check for blocking move
+                        if (moveIndex === -1) {
+                            for (let i = 0; i < availableMoves.length; i++) {
+                                const move = availableMoves[i];
+                                gameState[move] = 'X';
+                                
+                                let isBlockingMove = false;
+                                for (let j = 0; j < winningConditions.length; j++) {
+                                    const [a, b, c] = winningConditions[j];
+                                    if (gameState[a] === 'X' && gameState[b] === 'X' && gameState[c] === 'X') {
+                                        isBlockingMove = true;
+                                        break;
+                                    }
+                                }
+                                
+                                gameState[move] = '';
+                                
+                                if (isBlockingMove) {
+                                    moveIndex = move;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        // Take center
+                        if (moveIndex === -1 && gameState[4] === '') {
+                            moveIndex = 4;
+                        }
+                        
+                        // Take corners
+                        if (moveIndex === -1) {
+                            const corners = [0, 2, 6, 8].filter(corner => gameState[corner] === '');
+                            if (corners.length > 0) {
+                                moveIndex = corners[Math.floor(Math.random() * corners.length)];
+                            }
+                        }
+                        
+                        // Take random available move
+                        if (moveIndex === -1) {
+                            moveIndex = availableMoves[Math.floor(Math.random() * availableMoves.length)];
+                        }
+                        
+                        const cell = document.querySelector(`.cell[data-index="${moveIndex}"]`);
+                        updateCell(cell, moveIndex);
+                        checkForWin();
+                    }
+                    
+                    botThinking = false;
+                    status.classList.remove('thinking');
+                    
+                    if (gameActive && currentPlayer === 'X') {
+                        status.textContent = messages.playerTurn();
+                    }
+                }, 1000);
+            }
+            
+            function checkForWin() {
+                let roundWon = false;
+                let winLine = null;
+                
+                for (let i = 0; i < winningConditions.length; i++) {
+                    const [a, b, c] = winningConditions[i];
+                    const condition = gameState[a] !== '' && 
+                                     gameState[a] === gameState[b] && 
+                                     gameState[a] === gameState[c];
+                    
+                    if (condition) {
+                        roundWon = true;
+                        winLine = [a, b, c];
+                        break;
+                    }
+                }
+                
+                if (roundWon) {
+                    status.textContent = currentPlayer === 'X' ? messages.playerWins() : messages.botWins();
+                    status.classList.add('glitch');
+                    status.classList.remove('thinking');
+                    gameActive = false;
+                    drawWinLine(winLine);
+                    return true;
+                }
+                
+                const roundDraw = !gameState.includes('');
+                if (roundDraw) {
+                    status.textContent = messages.draw();
+                    status.classList.remove('thinking');
+                    gameActive = false;
+                    return true;
+                }
+                
+                switchPlayer();
+                return false;
+            }
+            
+            function switchPlayer() {
+                currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                switchIndicator();
+                
+                if (gameActive) {
+                    status.textContent = currentPlayer === 'X' ? messages.playerTurn() : messages.botTurn();
+                }
+            }
+            
+            function switchIndicator() {
+                if (currentPlayer === 'X') {
+                    playerIndicator.classList.add('active');
+                    botIndicator.classList.remove('active');
+                } else {
+                    playerIndicator.classList.remove('active');
+                    botIndicator.classList.add('active');
+                }
+            }
+            
+            function drawWinLine(line) {
+                const [a, b, c] = line;
+                const cellA = cells[a].getBoundingClientRect();
+                const cellC = cells[c].getBoundingClientRect();
+                
+                const boardRect = board.getBoundingClientRect();
+                
+                const winLine = document.createElement('div');
+                winLine.classList.add('winner-line');
+                
+                const isHorizontal = (a === 0 && c === 2) || (a === 3 && c === 5) || (a === 6 && c === 8);
+                const isVertical = (a === 0 && c === 6) || (a === 1 && c === 7) || (a === 2 && c === 8);
+                
+                if (isHorizontal) {
+                    winLine.style.width = '100%';
+                    winLine.style.height = '10px';
+                    winLine.style.top = `${(cellA.top + cellA.height/2) - boardRect.top}px`;
+                    winLine.style.left = '0';
+                } else if (isVertical) {
+                    winLine.style.height = '100%';
+                    winLine.style.width = '10px';
+                    winLine.style.left = `${(cellA.left + cellA.width/2) - boardRect.left}px`;
+                    winLine.style.top = '0';
+                } else {
+                    // Diagonal
+                    winLine.style.width = '130%';
+                    winLine.style.height = '10px';
+                    winLine.style.top = '50%';
+                    winLine.style.left = '-15%';
+                    winLine.style.transformOrigin = 'center';
+                    
+                    if (a === 0 && c === 8) {
+                        winLine.style.transform = 'translateY(-50%) rotate(45deg)';
+                    } else {
+                        winLine.style.transform = 'translateY(-50%) rotate(-45deg)';
+                    }
+                }
+                
+                board.appendChild(winLine);
+            }
+            
+            function startGame() {
+                gameActive = true;
+                currentPlayer = 'X';
+                gameState = ['', '', '', '', '', '', '', '', ''];
+                status.textContent = messages.playerTurn();
+                status.classList.remove('glitch');
+                status.classList.remove('thinking');
+                
+                playerIndicator.classList.add('active');
+                botIndicator.classList.remove('active');
+                
+                cells.forEach(cell => {
+                    cell.innerHTML = '';
+                });
+                
+                const existingLine = document.querySelector('.winner-line');
+                if (existingLine) existingLine.remove();
+                
+                botThinking = false;
+            }
+            
+            function toggleBot() {
+                botEnabled = !botEnabled;
+                botToggle.textContent = `Bot: ${botEnabled ? 'ON' : 'OFF'}`;
+                
+                // If game is active and it's bot's turn, make move
+                if (gameActive && currentPlayer === 'O' && botEnabled) {
+                    makeAIMove();
+                }
+            }
+            
+            startBtn.addEventListener('click', startGame);
+            botToggle.addEventListener('click', toggleBot);
+            cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+        });
+    </script>
+</body>
+</html>
